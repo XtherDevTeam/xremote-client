@@ -8,6 +8,7 @@ import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 
 @Serializable
 data class ErrorResponse(
@@ -30,7 +31,8 @@ data class PeerInfo (
 @Serializable
 data class ConnectionStatus(
     val host: PeerInfo,
-    val guest: PeerInfo
+    val guest: PeerInfo,
+    val timestamp: Long
 )
 
 @Serializable
@@ -102,6 +104,11 @@ fun unpackFrameData(packedData: ByteArray): FrameUpdateFull {
     return FrameUpdateFull(timestamp, length, frame)
 }
 
+@Serializable
+data class SetCompensationRatioRequest(
+    val ratio: Float,
+)
+
 /**
  * Remote class for interacting with the server.
  * @author Jerry Chau
@@ -114,6 +121,8 @@ class Remote {
     var onFrameReceived: ((FrameUpdateFull) -> Unit)? = null
     var lastFrameTimestamp: Long = 0
     var frameCountIn2S: Long = 0
+    var compensationRatio: Float = 1.0f
+    var server: String = ""
 
     fun getConnStatus(): ConnectionStatus {
         return connectionStatus!!
@@ -141,6 +150,8 @@ class Remote {
         return connectionStatus != null
     }
 
+
+
     /**
      * Register socket.io event listeners.
      */
@@ -153,17 +164,21 @@ class Remote {
             val error = Json.decodeFromString<ErrorResponse>(it[0].toString())
             throw RemoteException(error.message)
         }
-        socketIO?.on("data") {
-            println("111")
-        }
         socketIO?.on("frame_update_full") {
+            val currentTime = System.currentTimeMillis() - getConnStatus().timestamp
             val frame = unpackFrameData(it[0] as ByteArray)
+            val latency = abs(currentTime - frame.timestamp)
             onFrameReceived?.invoke(frame)
             frameCountIn2S++
+
             if (System.currentTimeMillis() - lastFrameTimestamp > 2000) {
-                println("Frame rate: ${frameCountIn2S / 2f} FPS | Latency ${(System.currentTimeMillis() - frame.timestamp)} ms")
+                val fps = frameCountIn2S / 2f
+                println("Frame rate: ${fps} FPS | Latency ${latency} ms")
                 lastFrameTimestamp = System.currentTimeMillis()
                 frameCountIn2S = 0
+            }
+            if (latency > 5000) {
+                reconnect()
             }
         }
     }
@@ -183,6 +198,7 @@ class Remote {
     fun initiateSocketConnection(server: String, secondStepToken: String, metrics: DisplayMetrics, onFinished: (error: Exception?) -> Unit) {
         this.displayMetrics = metrics
         this.secondStepToken = secondStepToken
+        this.server = server
         println("Initiating socket connection ${this.secondStepToken} ${secondStepToken}")
         socketIO = IO.socket("ws://$server/").connect()
         socketIO?.on(Socket.EVENT_CONNECT_ERROR) {
@@ -218,6 +234,7 @@ class Remote {
         "http://$server/initiate".httpGet(listOf("token" to token)).responseString { req, resp, result ->
             when (result) {
                 is Result.Failure -> {
+                    println("Error: ${result.getException()}")
                     onFinished(null, result.getException())
                 }
                 is Result.Success -> {
@@ -234,6 +251,12 @@ class Remote {
             }
         }
 
+    }
+
+    fun sendCompensationRequest(expectedRatio: Float = 1.0f) {
+        val req = SetCompensationRatioRequest(expectedRatio)
+        val json = Json.encodeToString(SetCompensationRatioRequest.serializer(), req)
+        socketIO?.emit("set_compensation_ratio", json)
     }
 
     fun sendBtnBack() {
@@ -286,5 +309,19 @@ class Remote {
         val event = InputEvent("text", text = text)
         val json = Json.encodeToString(InputEvent.serializer(), event)
         socketIO?.emit("input_event", json)
+    }
+
+    fun reconnect() {
+        disconnect()
+        initiateSocketConnection(server, secondStepToken!!, displayMetrics!!) {
+            when (it) {
+                null -> {
+                    println("Reconnected successfully")
+                }
+                else -> {
+                    println("Reconnection failed: ${it.message}")
+                }
+            }
+        }
     }
 }

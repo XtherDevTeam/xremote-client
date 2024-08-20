@@ -100,6 +100,7 @@ class ViewerActivity : ComponentActivity() {
         var keyboardInFocus by remember { mutableStateOf(false) }
         val focusManager = LocalFocusManager.current
         var keyboardInput by remember { mutableStateOf("") }
+        var currentResolutionLevel by remember { mutableStateOf(1) }
 
 
         Scaffold(modifier = Modifier.fillMaxSize(), vignette = {
@@ -114,8 +115,13 @@ class ViewerActivity : ComponentActivity() {
                     .focusRequester(keyboardFocusRequester)
                     .alpha(0f)
                     .onFocusChanged {
-                        println(it.isFocused)
-                    })
+                        if (!it.isFocused) {
+                            remote.sendText(keyboardInput)
+                            keyboardInput = ""
+                            keyboardInFocus = false
+                        }
+                    }
+            )
             Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(
                     modifier = Modifier.fillMaxHeight(0.9f),
@@ -147,8 +153,6 @@ class ViewerActivity : ComponentActivity() {
                 ) {
                     Button(onClick = {
                         if (keyboardInFocus) {
-                            remote.sendText(keyboardInput)
-                            keyboardInput = ""
                             focusManager.clearFocus()
                         } else {
                             keyboardFocusRequester.requestFocus()
@@ -161,6 +165,22 @@ class ViewerActivity : ComponentActivity() {
                         remote.sendBtnPower()
                     }, modifier = Modifier.size(30.dp)) {
                         Icon(painter = painterResource(R.drawable.power_settings_new_24px), contentDescription = "Power")
+                    }
+                    Button(onClick = {
+                        if (currentResolutionLevel == 1) {
+                            remote.sendCompensationRequest(0f)
+                        } else {
+                            remote.sendCompensationRequest(1f)
+                        }
+                        currentResolutionLevel = (currentResolutionLevel + 1) % 2
+                    }, modifier = Modifier.size(30.dp)) {
+                        Icon(painter = painterResource((currentResolutionLevel).let {
+                            if (it == 0) {
+                                R.drawable.sd_24px
+                            } else {
+                                R.drawable.hd_24px
+                            }
+                        }), contentDescription = "Resoluton")
                     }
                     Button(onClick = {
                         // back to main activity
