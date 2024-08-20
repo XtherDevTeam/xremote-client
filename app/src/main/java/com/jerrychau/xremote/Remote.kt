@@ -312,6 +312,7 @@ class Remote {
     }
 
     fun reconnect() {
+        println("Latency is too high! Reconnecting...")
         disconnect()
         initiateSocketConnection(server, secondStepToken!!, displayMetrics!!) {
             when (it) {

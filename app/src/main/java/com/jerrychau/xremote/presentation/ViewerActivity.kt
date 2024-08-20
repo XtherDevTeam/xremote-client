@@ -17,11 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextField
@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
@@ -110,6 +111,7 @@ class ViewerActivity : ComponentActivity() {
                 },
                 singleLine = true,
                 maxLines = 1,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier
                     .size(1.dp)
                     .focusRequester(keyboardFocusRequester)
@@ -131,7 +133,7 @@ class ViewerActivity : ComponentActivity() {
                     Button(onClick = {
                         remote.sendBtnBack()
                     }, modifier = Modifier.size(30.dp)) {
-                        Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back")
                     }
                     Button(onClick = {
                         remote.sendBtnHome()
@@ -188,7 +190,7 @@ class ViewerActivity : ComponentActivity() {
                         remote.disconnect()
                         finish()
                     }, modifier = Modifier.size(30.dp)) {
-                        Icon(Icons.Filled.ExitToApp, contentDescription = "Exit")
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Exit")
                     }
                 }
             }
@@ -201,13 +203,11 @@ class ViewerActivity : ComponentActivity() {
         val context = LocalContext.current
         // get device width and height (dp)
         val displayMetrics = context.resources.displayMetrics
-        val deviceWidth = displayMetrics.widthPixels / displayMetrics.density
-        val deviceHeight = displayMetrics.heightPixels / displayMetrics.density
         var bmpOffsetX = 0f
         var bmpOffsetY = 0f
         val state = rememberSwipeToDismissBoxState()
 
-        FAB() {
+        FAB {
             Row(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.Center
@@ -235,21 +235,18 @@ class ViewerActivity : ComponentActivity() {
                                         val curPosX = pointer.position.x
                                         val curPosY = pointer.position.y
                                         if (pointer.pressed && !pointer.previousPressed) {
-                                            println("Send down event ${bmpOffsetX} ${bmpOffsetY}")
                                             remote.sendTouchDown(
                                                 curPosX.toInt(),
                                                 curPosY.toInt(),
                                                 pointer.id.value.toInt()
                                             )
                                         } else if (!pointer.pressed && pointer.previousPressed) {
-                                            println("Send up event")
                                             remote.sendTouchUp(
                                                 curPosX.toInt(),
                                                 curPosY.toInt(),
                                                 pointer.id.value.toInt()
                                             )
                                         } else if (pointer.pressed && pointer.previousPressed) {
-                                            println("Send move event")
                                             remote.sendTouchMove(
                                                 curPosX.toInt(),
                                                 curPosY.toInt(),

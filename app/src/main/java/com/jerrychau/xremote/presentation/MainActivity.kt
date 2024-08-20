@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
     var remote = Remote()
 
     class SharePreferenceWrapper {
-        var sharedPreferences: SharedPreferences? = null;
+        var sharedPreferences: SharedPreferences? = null
 
         constructor(pf: SharedPreferences) {
             sharedPreferences = pf
