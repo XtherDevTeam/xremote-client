@@ -120,6 +120,7 @@ class Remote {
     var connectionStatus: ConnectionStatus? = null
     var onFrameReceived: ((FrameUpdateFull) -> Unit)? = null
     var lastFrameTimestamp: Long = 0
+    var connectTimestamp: Long = 0
     var frameCountIn2S: Long = 0
     var compensationRatio: Float = 1.0f
     var server: String = ""
@@ -158,6 +159,7 @@ class Remote {
     fun initiateSocketIO() {
         socketIO?.on("connected") {
             connectionStatus = Json.decodeFromString<HandshakeResponse>(it[0].toString()).connection_status
+            connectTimestamp = System.currentTimeMillis()
             println("Established proper connection successfully")
         }
         socketIO?.on("error") {
@@ -165,9 +167,10 @@ class Remote {
             throw RemoteException(error.message)
         }
         socketIO?.on("frame_update_full") {
-            val currentTime = System.currentTimeMillis() - getConnStatus().timestamp
+            val currentTime = System.currentTimeMillis() - connectTimestamp
             val frame = unpackFrameData(it[0] as ByteArray)
-            val latency = abs(currentTime - frame.timestamp)
+            val frameTime = frame.timestamp
+            val latency = abs(currentTime - frameTime)
             onFrameReceived?.invoke(frame)
             frameCountIn2S++
 
